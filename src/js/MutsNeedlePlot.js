@@ -295,6 +295,14 @@ MutsNeedlePlot.prototype.drawLegend = function(svg) {
 
 };
 
+MutsNeedlePlot.prototype.drawLowerChart = function(svg, regionData) {
+    
+    var margin = {top: 20, right: 20, bottom: 30, left: 35};
+    var navWidth = this.width,
+        navHeight = 100 - margin.top - margin.bottom;
+
+};
+
 MutsNeedlePlot.prototype.drawRegions = function(svg, regionData) {
 
     var maxCoord = this.maxCoord;
