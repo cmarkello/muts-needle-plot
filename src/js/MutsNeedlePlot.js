@@ -60,7 +60,7 @@ function MutsNeedlePlot (config) {
       buffer = width / 8;
     }
 
-    this.buffer = buffer;
+    this.buffer = buffer + 50;
 
     // IIMPORT AND CONFIGURE TIPS
     var d3tip = require('d3-tip');
@@ -118,7 +118,7 @@ function MutsNeedlePlot (config) {
 
     var y = d3.scale.linear()
       .domain([1,20])
-      .range([height - buffer * 1.5, buffer])
+      .range([height - buffer * 3.0, buffer])
       .nice();
     this.y = y;
 
@@ -295,14 +295,6 @@ MutsNeedlePlot.prototype.drawLegend = function(svg) {
 
 };
 
-MutsNeedlePlot.prototype.drawLowerChart = function(svg, regionData) {
-    
-    var margin = {top: 20, right: 20, bottom: 30, left: 35};
-    var navWidth = this.width,
-        navHeight = 100 - margin.top - margin.bottom;
-
-};
-
 MutsNeedlePlot.prototype.drawRegions = function(svg, regionData) {
 
     var maxCoord = this.maxCoord;
@@ -325,7 +317,7 @@ MutsNeedlePlot.prototype.drawRegions = function(svg, regionData) {
 
     getColor = this.colorScale;
 
-    var bg_offset = 0;
+    var bg_offset = 50;
     var region_offset = bg_offset-3
     var text_offset = bg_offset + 20;
     if (below != true) {
@@ -529,7 +521,7 @@ MutsNeedlePlot.prototype.drawAxes = function(svg) {
 
     svg.append("svg:g")
       .attr("class", "x-axis axis")
-      .attr("transform", "translate(0," + (this.height - this.buffer) + ")")
+      .attr("transform", "translate(0," + (this.height - this.buffer - 75) + ")")
       .call(xAxis);
 
     yAxis = d3.svg.axis().scale(y).orient("left").tickFormat(function(d) {
@@ -544,8 +536,16 @@ MutsNeedlePlot.prototype.drawAxes = function(svg) {
 
     svg.append("svg:g")
       .attr("class", "y-axis axis")
-      .attr("transform", "translate(" + (this.buffer * 1.2 + 5)  + ",0)")
+      .attr("transform", "translate(" + ((this.buffer - 50) * 1.2 + 5)  + ",0)")
       .call(yAxis);
+
+    // lower chart x axis drawing
+    xAxisLowerChart = d3.svg.axis().scale(x).orient("bottom");
+
+    svg.append("svg:g")
+      .attr("class", "x-axis axis")
+      .attr("transform", "translate(0," + (this.height - this.buffer + 12) + ")")
+      .call(xAxisLowerChart);
 
     // appearance for x and y legend
     d3.selectAll(".axis path")
@@ -637,11 +637,9 @@ MutsNeedlePlot.prototype.drawNeedles = function(svg, mutationData, regionData) {
         }
 
         category = d.category || "other";
-
+        
         if (stickHeight + numericValue > highest) {
-            // set Y-Axis always to highest available
-            highest = stickHeight;
-            getYAxis().domain([0, highest + 1]);
+            getYAxis().domain([0, 3]);
         }
 
 
