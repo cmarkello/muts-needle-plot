@@ -62,7 +62,7 @@ function MutsNeedlePlot (config) {
 
     this.buffer = buffer + 50;
 
-    // IIMPORT AND CONFIGURE TIPS
+    // IMPORT AND CONFIGURE TIPS
     var d3tip = require('d3-tip');
     d3tip(d3);
 
@@ -172,12 +172,11 @@ function MutsNeedlePlot (config) {
             }
             return is_brushed;
         });
-        
-        needleLines.classed("selected", function(d) {
-            is_brushed = extent[0] <= d.coord && d.coord <= extent[1];
-            return is_brushed;
-        });
 
+        needleLines.classed("selected", function(d) {
+            return extent[0] <= d.coord && d.coord <= extent[1];
+        });
+         
         self.trigger('needleSelectionChange', {
             selected : selectedNeedles,
             categCounts: categCounts,
@@ -197,24 +196,62 @@ function MutsNeedlePlot (config) {
     }
     
     function redrawChart() {
-        console.log(d3.selectAll('.needle-line'));
-        //this.needleHeads.map(function (test) {console.log(test.select('.cx'));});
+        if (!selector.empty()) {
+            d3.selectAll('.needle-head.selected')
+                .attr("opacity", 1.0);
+            d3.selectAll('.needle-head:not(.selected)')
+                .attr("opacity", 0);
+            d3.selectAll('.needle-line.selected')
+                .attr("opacity", 1.0);
+            d3.selectAll('.needle-line:not(.selected)')
+                .attr("opacity", 0);
+        } else {
+            d3.selectAll('.needle-head')
+                .attr("opacity", 1.0);
+            d3.selectAll('.needle-line')
+                .attr("opacity", 1.0);
+        }
+        d3.selectAll('.needle-head')
+            .attr("cx", function(data) { return x(data.coord) } );
+        d3.selectAll('.needle-line')
+            .attr("x1", function(data) { return x(data.coord) })
+            .attr("x2", function(data) { return x(data.coord) });
         svg.select('.x.axis').call(xAxis);
+    }
+    
+    function updateViewportFromChart() {
+        if ((x.domain()[0] < this.minCoord) && (x.domain()[1] >= this.maxCoord)) {
+            selector.clear();
+        } else {
+            selector.extent(x.domain());
+        }
+    
+        svg.select('.selector').call(selector);
     }
 
     var zoom = d3.behavior.zoom()
         .x(x)
         .on('zoom', function() {
             if (x.domain()[0] < this.minCoord) {
-                var x = zoom.translate()[0] - this.x(this.minCoord) + this.x.range()[0];
-                zoom.translate([x, 0]);
+                var newX = zoom.translate()[0] - x(this.minCoord) + x.range()[0];
+                zoom.translate([newX, 0]);
             } else if (x.domain()[1] > this.maxCoord) {
-                var x = zoom.translate()[0] - this.x(this.maxCoord) + this.x.range()[1];
-                zoom.translate([x, 0]);
+                var newX = zoom.translate()[0] - x(this.maxCoord) + x.range()[1];
+                zoom.translate([newX, 0]);
             }
             redrawChart();
         
         });
+
+    var overlay = d3.svg.area()
+        .x(function (data) { return x(data.coord); })
+        .y0(0)
+        .y1(this.height);
+
+    svg.append('path')
+        .attr('class', 'overlay')
+        .attr('d', overlay(self.selectedNeedles))
+        .call(zoom);
 
     /// DRAW
     this.drawNeedles(svg, this.mutationData, this.regionData);
@@ -744,7 +781,7 @@ MutsNeedlePlot.prototype.drawNeedles = function(svg, mutationData, regionData) {
             .attr("class", "needle-head")
             .style("fill", function(data) { return data.color })
             .style("stroke", function(data) {return d3.rgb(data.color).darker()})
-            .on('mouseover',  function(d){ d3.select(this).moveToFront(); tip.show(d); })
+            .on('mouseover', function(d){ d3.select(this).moveToFront(); tip.show(d); })
             .on('mouseout', tip.hide);
 
         d3.selection.prototype.moveToFront = function() {
