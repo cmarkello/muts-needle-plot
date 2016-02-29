@@ -51,6 +51,7 @@ function MutsNeedlePlot (config) {
     this.svgClasses = "mutneedles";
     this.buffer = 0;
 
+    var minCoord = this.minCoord;
     var maxCoord = this.maxCoord;
 
     var buffer = 0;
@@ -76,7 +77,7 @@ function MutsNeedlePlot (config) {
 
     this.selectionTip = d3.tip()
         .attr('class', 'd3-tip d3-tip-selection')
-        .offset([-50, 0])
+        .offset([-10, 0])
         .html(function(d) {
             return "<span> Selected coordinates<br/>" + Math.round(d.left) + " - " + Math.round(d.right) + "</span>";
         })
@@ -109,28 +110,55 @@ function MutsNeedlePlot (config) {
 
     // DEFINE SCALES
 
-    var x = d3.scale.linear()
+    var xScale = d3.scale.linear()
       .domain([this.minCoord, this.maxCoord])
       .range([buffer * 1.5 , width - buffer])
       .nice();
-    this.x = x;
+    this.xScale = xScale;
 
     var navXScale = d3.scale.linear()
       .domain([this.minCoord, this.maxCoord])
       .range([buffer * 1.5 , width - buffer])
       .nice(); 
     
-    var y = d3.scale.linear()
-      .domain([1,20])
+    var yScale = d3.scale.linear()
+      .domain([0,5])
       .range([height - buffer * 3.0, buffer])
       .nice();
-    this.y = y;
+    this.yScale = yScale;
+    
+    // CONFIGURE ZOOM
+    var zoom = d3.behavior.zoom()
+        .x(xScale)
+        .on('zoom', function() {
+            if (xScale.domain()[0] < minCoord) {
+                var x = zoom.translate()[0] - xScale(minCoord) + xScale.range()[0];
+                zoom.translate([x, 0]);
+            }
+            else if (xScale.domain()[1] > maxCoord) {
+                var x = zoom.translate()[1] - xScale(maxCoord) + xScale.range()[1];
+                zoom.translate([x, 0]);
+            } 
+            updateViewportFromChart(); 
+            redrawChart();
+        });
+    
+    svg.append('rect')
+        .attr('class', 'overlay')
+        .attr("x", (this.buffer-50)*1.2 + 18)
+        .attr("y", 0)
+        .attr("width", navXScale(maxCoord) - navXScale(minCoord))
+        .attr("height", this.height - this.buffer - 75)
+        .attr("opacity", 0)
+        .call(zoom);
+    
 
     // CONFIGURE BRUSH
     self.selector = d3.svg.brush()
         .x(navXScale)
         .on("brush", brushmove)
         .on("brushend", brushend);
+    
     var selector = self.selector;
 
     var selectionRect = topnode
@@ -140,18 +168,7 @@ function MutsNeedlePlot (config) {
         .attr('y', height-50)
         .attr('opacity', 0.2);
 
-    selectionRect.on("mouseenter", function() {
-        var selection = selector.extent();
-        self.selectionTip.show({left: selection[0], right: selection[1]}, selectionRect.node());
-    })
-        .on("mouseout", function(){
-            d3.select(".d3-tip-selection")
-                .transition()
-                .delay(3000)
-                .duration(1000)
-                .style("opacity",0)
-                .style('pointer-events', 'none');
-        });
+    var selectedNeedles = this.selectedNeedles;
 
     function brushmove() {
 
@@ -182,11 +199,13 @@ function MutsNeedlePlot (config) {
             categCounts: categCounts,
             coords: extent
         });
-        x.domain(selector.empty() ? navXScale.domain() : extent);
+        xScale.domain(selector.empty() ? navXScale.domain() : selector.extent());
         redrawChart();
     }
 
     function brushend() {
+        updateZoomFromChart();
+
         get_button = d3.select(".clear-button");
         self.trigger('needleSelectionChangeEnd', {
             selected : selectedNeedles,
@@ -212,47 +231,47 @@ function MutsNeedlePlot (config) {
                 .attr("opacity", 1.0);
         }
         d3.selectAll('.needle-head')
-            .attr("cx", function(data) { return x(data.coord) } );
+            .attr("cx", function(data) { return xScale(data.coord) } );
         d3.selectAll('.needle-line')
-            .attr("x1", function(data) { return x(data.coord) })
-            .attr("x2", function(data) { return x(data.coord) });
+            .attr("x1", function(data) { return xScale(data.coord) })
+            .attr("x2", function(data) { return xScale(data.coord) });
+        d3.selectAll(".axis path")
+            .attr('fill', 'none')
+            .attr('stroke','#000');
+        d3.selectAll(".axis line")
+            .attr('fill', 'none')
+            .attr('stroke','#000');
         svg.select('.x.axis').call(xAxis);
     }
     
+   
     function updateViewportFromChart() {
-        if ((x.domain()[0] < this.minCoord) && (x.domain()[1] >= this.maxCoord)) {
-            selector.clear();
+        if ((xScale.domain()[0] <= minCoord) && (xScale.domain()[1] >= maxCoord)) {
+            self.selector.clear();
         } else {
-            selector.extent(x.domain());
+            self.selector.extent(xScale.domain());
         }
-    
-        svg.select('.selector').call(selector);
+        // call the extent to change with transition
+        self.selector(d3.select(".brush"));
+        // call extent (selection) change listeners
+        self.selector.event(d3.select(".brush"));
     }
-
-    var zoom = d3.behavior.zoom()
-        .x(x)
-        .on('zoom', function() {
-            if (x.domain()[0] < this.minCoord) {
-                var newX = zoom.translate()[0] - x(this.minCoord) + x.range()[0];
-                zoom.translate([newX, 0]);
-            } else if (x.domain()[1] > this.maxCoord) {
-                var newX = zoom.translate()[0] - x(this.maxCoord) + x.range()[1];
-                zoom.translate([newX, 0]);
-            }
-            redrawChart();
+   
+    function updateZoomFromChart() {
         
-        });
+        zoom.x(xScale);
+        
+        var fullDomain = maxCoord - minCoord,
+            currentDomain = xScale.domain()[1] - xScale.domain()[0];
 
-    var overlay = d3.svg.area()
-        .x(function (data) { return x(data.coord); })
-        .y0(0)
-        .y1(this.height);
+        var minScale = currentDomain / fullDomain,
+            maxScale = minScale * 1000;
 
-    svg.append('path')
-        .attr('class', 'overlay')
-        .attr('d', overlay(self.selectedNeedles))
-        .call(zoom);
+        zoom.scaleExtent([minScale, maxScale]);
+    }
+    
 
+    
     /// DRAW
     this.drawNeedles(svg, this.mutationData, this.regionData);
 
@@ -272,12 +291,6 @@ function MutsNeedlePlot (config) {
             selection = edata.coords;
             if (selection[1] - selection[0] > 0) {
                 self.selectionTip.show({left: selection[0], right: selection[1]}, selectionRect.node());
-                d3.select(".d3-tip-selection")
-                    .transition()
-                    .delay(3000)
-                    .duration(1000)
-                    .style("opacity",0)
-                    .style('pointer-events', 'none');
             } else {
                 self.selectionTip.hide();
             }
@@ -307,8 +320,8 @@ MutsNeedlePlot.prototype.drawLegend = function(svg) {
     mutsScale = self.colorScale.domain(mutCategories).range(categoryColors);
 
 
-    var domain = self.x.domain();
-    xplacement = (self.x(domain[1]) - self.x(domain[0])) * 0.75 + self.x(domain[0]);
+    var domain = self.xScale.domain();
+    xplacement = (self.xScale(domain[1]) - self.xScale(domain[0])) * 0.75 + self.xScale(domain[0]);
 
 
     var sum = 0;
@@ -328,6 +341,7 @@ MutsNeedlePlot.prototype.drawLegend = function(svg) {
 
     self.noshow = [];
     var needleHeads = d3.selectAll(".needle-head");
+    var needleLines = d3.selectAll(".needle-line");
     showNoShow = function(categ){
         if (_.contains(self.noshow, categ)) {
             self.noshow = _.filter(self.noshow, function(s) { return s != categ });
@@ -335,6 +349,9 @@ MutsNeedlePlot.prototype.drawLegend = function(svg) {
             self.noshow.push(categ);
         }
         needleHeads.classed("noshow", function(d) {
+            return _.contains(self.noshow, d.category);
+        });
+        needleLines.classed("noshow", function(d) {
             return _.contains(self.noshow, d.category);
         });
         var legendCells = d3.selectAll("g.legendCells");
@@ -367,8 +384,8 @@ MutsNeedlePlot.prototype.drawRegions = function(svg, regionData) {
     var minCoord = this.minCoord;
     var buffer = this.buffer;
     var colors = this.colorMap;
-    var y = this.y;
-    var x = this.x;
+    var y = this.yScale;
+    var x = this.xScale;
 
     var below = true;
 
@@ -383,7 +400,7 @@ MutsNeedlePlot.prototype.drawRegions = function(svg, regionData) {
 
     getColor = this.colorScale;
 
-    var bg_offset = 50;
+    var bg_offset = 90;
     var region_offset = bg_offset-3
     var text_offset = bg_offset + 20;
     if (below != true) {
@@ -549,16 +566,9 @@ MutsNeedlePlot.prototype.drawRegions = function(svg, regionData) {
 
     function formatRegions(regions) {
         for (key in Object.keys(regions)) {
-
             regions[key].start = getRegionStart(regions[key].coord);
             regions[key].end = getRegionEnd(regions[key].coord);
             regions[key].color = getColor(regions[key].name);
-            /*regionList.push({
-                'name': key,
-                'start': getRegionStart(regions[key]),
-                'end': getRegionEnd(regions[key]),
-                'color': getColor(key)
-            });*/
         }
         return regions;
     }
@@ -580,24 +590,27 @@ MutsNeedlePlot.prototype.drawRegions = function(svg, regionData) {
 
 MutsNeedlePlot.prototype.drawAxes = function(svg) {
 
-    var y = this.y;
-    var x = this.x;
+    var y = this.yScale;
+    var x = this.xScale;
 
-    xAxis = d3.svg.axis().scale(x).orient("bottom");
+    xAxis = d3.svg.axis().scale(x).ticks(8).orient("bottom");
 
     svg.append("svg:g")
       .attr("class", "x axis")
       .attr("transform", "translate(0," + (this.height - this.buffer - 75) + ")")
       .call(xAxis);
 
-    yAxis = d3.svg.axis().scale(y).orient("left").tickFormat(function(d) {
-    var yAxisLabel = ""; 
-    if (d == '1.0') {
-        yAxisLabel = "Benign";
-    } else if (d == "2.0") {
-        yAxisLabel = "Pathogenic";
-    }   
-    return yAxisLabel;
+    yAxis = d3.svg.axis().scale(y).orient("left").ticks(3).tickFormat(function(d) {
+        var yAxisLabel = ""; 
+        if (d == "1.0") {
+            yAxisLabel = "Unknown";
+        } else if (d == "2.0") {
+            yAxisLabel = "Benign";
+        } else if (d == "3.0") {
+            yAxisLabel = "Pathogenic";
+        } 
+        
+        return yAxisLabel;
     });
 
     svg.append("svg:g")
@@ -610,12 +623,16 @@ MutsNeedlePlot.prototype.drawAxes = function(svg) {
 
     svg.append("svg:g")
       .attr("class", "x axis")
-      .attr("transform", "translate(0," + (this.height - this.buffer + 12) + ")")
+      .attr("transform", "translate(0," + (this.height - this.buffer + 52) + ")")
       .call(xAxisLowerChart);
 
     // appearance for x and y legend
     d3.selectAll(".axis path")
-        .attr('fill', 'none');
+        .attr('fill', 'none')
+        .attr('stroke','#000');
+    d3.selectAll(".axis line")
+        .attr('fill', 'none')
+        .attr('stroke','#000');
     d3.selectAll(".domain")
         .attr('stroke', 'black')
         .attr('stroke-width', 1);
@@ -631,7 +648,7 @@ MutsNeedlePlot.prototype.drawAxes = function(svg) {
     svg.append("text")
           .attr("class", "x-label")
           .attr("text-anchor", "middle")
-          .attr("transform", "translate(" + (this.width / 2) + "," + (this.height - this.buffer / 3) + ")")
+          .attr("transform", "translate(" + (this.width / 2) + "," + ((this.height+15) - this.buffer / 3) + ")")
           .text(this.legends.x)
         .attr('font-weight', 'bold')
         .attr('font-size', 12);
@@ -640,8 +657,8 @@ MutsNeedlePlot.prototype.drawAxes = function(svg) {
 
 MutsNeedlePlot.prototype.drawNeedles = function(svg, mutationData, regionData) {
 
-    var y = this.y;
-    var x = this.x;
+    var y = this.yScale;
+    var x = this.xScale;
     var self = this;
 
     getYAxis = function() {
@@ -694,12 +711,14 @@ MutsNeedlePlot.prototype.drawNeedles = function(svg, mutationData, regionData) {
         
         //Modify height parameter to instead match pathogenicity state
         stickHeight = 0;
-        if (d.category == 'Benign') {
+        if (d.category == 'Unknown') {
             stickHeight = 1;
-        } else if (d.category == 'Pathogenic') {
+        } else if (d.category == 'Benign') {
             stickHeight = 2;
+        } else if (d.category == 'Pathogenic') {
+            stickHeight = 3;
         }
-
+        
         category = d.category || "other";
         
         if (stickHeight + numericValue > highest) {
@@ -781,7 +800,7 @@ MutsNeedlePlot.prototype.drawNeedles = function(svg, mutationData, regionData) {
             .attr("class", "needle-head")
             .style("fill", function(data) { return data.color })
             .style("stroke", function(data) {return d3.rgb(data.color).darker()})
-            .on('mouseover', function(d){ d3.select(this).moveToFront(); tip.show(d); })
+            .on('mouseover', function(data){ d3.select(this).moveToFront(); tip.show(data); })
             .on('mouseout', tip.hide);
 
         d3.selection.prototype.moveToFront = function() {
