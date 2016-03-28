@@ -99,8 +99,8 @@ d3.svg.legend = function() {
                     .attr("transform", function(d,i) {return "translate(0," + (i * (cellHeight + cellPadding)) + ")" });
             }
             else {
-                legend.target.selectAll("g.legendCells").attr("transform", function(d,i) {return "translate(" + (i * cellWidth) + ",0)" });
-                legend.target.selectAll("text.breakLabels").style("text-anchor", "middle").attr("x", 0).attr("y", -7).style("display", function(d,i) {return i == 0 ? "none" : "block"}).text(function(d) {return labelFormat(d.stop[0])});
+                legend.target.selectAll("g.legendCells").attr("transform", function(d,i) {return "translate(" + (i * (cellWidth + cellPadding+150)) + ",-13)" });
+                legend.target.selectAll("text.breakLabels").style("text-anchor", "start").attr("x", 23).attr("y", 10).style("display", "block").text(function(d) {return labelFormat(d.stop[0])});
             }
         }
 
@@ -146,7 +146,7 @@ d3.svg.legend = function() {
 
         legend.target.append("text")
             .text(labelUnits)
-            .attr("y", -7)
+            .attr("y", -22)
             .attr("class", "legendTitle");
 
         redraw();

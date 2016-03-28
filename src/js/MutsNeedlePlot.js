@@ -376,13 +376,13 @@ MutsNeedlePlot.prototype.drawLegend = function(plotArea) {
         .labelClass(legendClass)
         .onLegendClick(showNoShow)
         .cellPadding(4)
-        .orientation("vertical")
+        .orientation("horizontal")
         .units(sum + " Variants")
         .cellWidth(20)
         .cellHeight(12)
         .inputScale(mutsScale)
         .cellStepping(4)
-        .place({x: xplacement, y: 50});
+        .place({x: xplacement-280, y: 70});
 
     plotArea.call(verticalLegend);
 
@@ -615,7 +615,7 @@ MutsNeedlePlot.prototype.drawAxes = function(plotChart, navChart) {
     yAxis = d3.svg.axis().scale(y).orient("left").ticks(3).tickFormat(function(d) {
         var yAxisLabel = ""; 
         if (d == "1.0") {
-            yAxisLabel = "Unknown";
+            yAxisLabel = "Uncertain";
         } else if (d == "2.0") {
             yAxisLabel = "Benign";
         } else if (d == "3.0") {
@@ -726,7 +726,7 @@ MutsNeedlePlot.prototype.drawNeedles = function(plotChart, plotArea, navChart, m
         
         //Modify height parameter to instead match pathogenicity state
         stickHeight = 0;
-        if (d.category == 'Unknown') {
+        if (d.category == 'Uncertain') {
             stickHeight = 1;
         } else if (d.category == 'Benign') {
             stickHeight = 2;
