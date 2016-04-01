@@ -188,30 +188,9 @@ function MutsNeedlePlot (config) {
     function brushmove() {
 
         var extent = selector.extent();
-        needleHeads = d3.selectAll(".needle-head");
-        needleLines = d3.selectAll(".needle-line");
-        selectedNeedles = [];
-        categCounts = {};
-        for (key in Object.keys(self.totalCategCounts)) {
-            categCounts[key] = 0;
-        }
-
-        needleHeads.classed("selected", function(d) {
-            is_brushed = extent[0] <= d.coord && d.coord <= extent[1];
-            if (is_brushed) {
-                selectedNeedles.push(d);
-                categCounts[d.category] = (categCounts[d.category] || 0) + d.value;
-            }
-            return is_brushed;
-        });
-
-        needleLines.classed("selected", function(d) {
-            return extent[0] <= d.coord && d.coord <= extent[1];
-        });
+        
          
         self.trigger('needleSelectionChange', {
-            selected : selectedNeedles,
-            categCounts: categCounts,
             coords: extent
         });
         xScale.domain(selector.empty() ? navXScale.domain() : selector.extent());
@@ -221,6 +200,23 @@ function MutsNeedlePlot (config) {
     function brushend() {
 
         updateZoomFromChart();
+        var extent = selector.extent();
+        needleHeads = d3.selectAll(".needle-head");
+        needleLines = d3.selectAll(".needle-line");
+        selectedNeedles = [];
+        categCounts = {};
+        for (key in Object.keys(self.totalCategCounts)) {
+            categCounts[key] = 0;
+        }
+
+        needleHeads.classed("selected", function(d) {
+            is_brushed = (extent[0] <= d.coord && d.coord <= extent[1]);
+            if (is_brushed) {
+                selectedNeedles.push(d);
+                categCounts[d.category] = (categCounts[d.category] || 0) + d.value;
+            }
+            return is_brushed;
+        });
         
         self.trigger('needleSelectionChangeEnd', {
             selected : selectedNeedles,
@@ -229,6 +225,33 @@ function MutsNeedlePlot (config) {
         });
     }
     
+    function zoomend() {
+
+        var extent = selector.extent();
+        needleHeads = d3.selectAll(".needle-head");
+        needleLines = d3.selectAll(".needle-line");
+        selectedNeedles = [];
+        categCounts = {};
+        for (key in Object.keys(self.totalCategCounts)) {
+            categCounts[key] = 0;
+        }
+
+        needleHeads.classed("selected", function(d) {
+            is_brushed = (extent[0] <= d.coord && d.coord <= extent[1]);
+            if (is_brushed) {
+                selectedNeedles.push(d);
+                categCounts[d.category] = (categCounts[d.category] || 0) + d.value;
+            }
+            return is_brushed;
+        });
+        
+        self.trigger('needleSelectionChangeEnd', {
+            selected : selectedNeedles,
+            categCounts: categCounts,
+            coords: selector.extent()
+        });
+    }
+
     function redrawChart() {
         d3.selectAll('.needle-head')
             .attr("cx", function(data) { return xScale(data.coord) } );
@@ -261,7 +284,7 @@ function MutsNeedlePlot (config) {
         } else {
             self.selectionTip.hide();
         }
-        brushmove();
+        zoomend();
     }
 
     selector.on("brushend", brushend);
@@ -285,11 +308,6 @@ function MutsNeedlePlot (config) {
     updateViewportFromChart();
     updateZoomFromChart();
 
-    self.on("needleSelectionChange", function (edata) {
-        self.categCounts = edata.categCounts;
-        self.selectedNeedles = edata.selected;
-        plotChart.call(verticalLegend);
-    });
 
     self.on("needleSelectionChangeEnd", function (edata) {
         self.categCounts = edata.categCounts;
@@ -741,7 +759,7 @@ MutsNeedlePlot.prototype.drawNeedles = function(plotChart, plotArea, navChart, m
         }
 
 
-        if (numericCoord > 0) {
+        if (numericCoord > 0 && ( self.navXScale.domain()[0] <= numericCoord && numericCoord <= self.navXScale.domain()[1])) {
 
             // record and count categories
             self.totalCategCounts[category] = (self.totalCategCounts[category] || 0) + numericValue;
@@ -756,7 +774,7 @@ MutsNeedlePlot.prototype.drawNeedles = function(plotChart, plotArea, navChart, m
                 oldData: d.oldData
             }
         } else {
-            console.debug("discarding " + d.coord + " " + d.category + "("+ numericCoord +")");
+            //console.debug("discarding " + d.coord + " " + d.category + "("+ numericCoord +")");
         }
     }
 
