@@ -29,10 +29,10 @@ function MutsNeedlePlot (config) {
     this.categCounts = {};
     this.selectedNeedles = [];
     this.variantDetailLink = config.variantDetailLink;
-
+    
     // Plot dimensions & target
     var targetElement = document.getElementById(config.targetElement) || config.targetElement || document.body   // Where to append the plot (svg)
-
+    
     var width = this.width = config.width || targetElement.offsetWidth || 1000;
     var height = this.height = config.height || targetElement.offsetHeight || 500;
 
@@ -118,7 +118,7 @@ function MutsNeedlePlot (config) {
    
     var plotArea = plotChart.append('g')
         .attr('clip-path', 'url(#plotAreaClip)'); 
-    
+   
     plotArea.append('clipPath')
         .attr('id', 'plotAreaClip')
         .append('rect')
@@ -134,7 +134,6 @@ function MutsNeedlePlot (config) {
     
     plotArea.call(this.tip);
     navChart.call(this.selectionTip);
-
     
     // CONFIGURE ZOOM //
 
